@@ -1,6 +1,6 @@
 # FileCrack
 
-FileCrack 是一个面向授权场景的常见加密文件密码恢复工具，支持导入字典路径、多线程尝试和多格式后端。适合找回自己遗忘的文件密码、企业内部合规恢复、取证实验环境验证等用途。
+FileCrack 是一个面向授权场景的常见加密文件密码恢复工具，支持单个密码尝试、内置弱密码检查、导入字典路径、多线程尝试和多格式自动识别。适合找回自己遗忘的文件密码、企业内部合规恢复、取证实验环境验证等用途。
 
 请只对你拥有所有权或明确授权的文件使用本工具。
 
@@ -37,6 +37,18 @@ pip install -e ".[full]"
 
 ## 快速使用
 
+单个密码尝试：
+
+```bash
+filecrack ./locked.zip -p "my-secret"
+```
+
+弱密码检查：
+
+```bash
+filecrack ./locked.pdf --weak-check
+```
+
 准备字典文件，每行一个候选密码：
 
 ```text
@@ -49,6 +61,12 @@ my-secret
 
 ```bash
 filecrack ./locked.zip -w ./dict.txt
+```
+
+组合使用，先尝试单个密码，再检查内置弱密码，最后跑字典：
+
+```bash
+filecrack ./locked.docx -p "2026@Company" --weak-check -w ./dict.txt -t 8
 ```
 
 指定线程数：
@@ -80,12 +98,20 @@ filecrack .\locked.xlsx -w .\dict.txt -t 8
 | 参数 | 说明 |
 | --- | --- |
 | `target` | 需要恢复密码的文件路径 |
+| `-p, --password` | 单个密码尝试 |
+| `--weak-check` | 启用内置弱密码检查 |
 | `-w, --wordlist` | 字典路径，每行一个候选密码 |
 | `-t, --threads` | 线程数，默认使用 CPU 核心数 |
 | `--encoding` | 字典编码，默认 `utf-8` |
-| `--format` | 强制指定格式，例如 `zip`、`rar`、`7z`、`pdf`、`docx` |
+| `--format` | 默认自动识别格式；必要时强制指定 `zip`、`rar`、`7z`、`pdf`、`docx` |
 | `--chunk-size` | 每个线程任务批量尝试的密码数量，默认 `512` |
 | `--quiet` | 只输出找到的密码 |
+
+至少需要提供 `--password`、`--weak-check` 或 `--wordlist` 中的一种密码来源。
+
+## 自动识别
+
+FileCrack 默认会根据文件头魔数识别 `zip`、`rar`、`7z`、`pdf`、Office/WPS 加密容器，并在必要时回退到扩展名判断。常规情况下不需要手动指定格式；只有文件头被破坏、文件被改名成特殊扩展名或需要调试时，才建议使用 `--format`。
 
 ## 速度和准确率
 
@@ -93,6 +119,7 @@ filecrack .\locked.xlsx -w .\dict.txt -t 8
 - 准确率取决于格式后端能否正确验证密码，以及字典中是否包含正确密码。
 - ZIP、7Z、RAR、PDF、Office/WPS 的加密算法差异很大，实际速度会明显不同。
 - 未加密文件不会被误报为“第一个密码正确”。
+- 单密码、弱密码和字典组合使用时会自动去重，避免重复尝试。
 
 ## 退出码
 
