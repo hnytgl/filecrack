@@ -157,7 +157,7 @@ class PdfBackend:
 def get_backend(path: Path, force_format: str | None = None) -> CrackBackend:
     office_extensions = {".doc", ".xls", ".ppt", ".docx", ".xlsx", ".pptx", ".wps", ".et", ".el", ".dps", ".wpt"}
     backends: list[CrackBackend] = [ZipBackend(), SevenZipBackend(), RarBackend(), PdfBackend(), OfficeBackend()]
-    suffix = f".{force_format.lower().lstrip('.')}" if force_format else path.suffix.lower()
+    suffix = _normalize_format(force_format) if force_format else detect_format(path)
 
     if suffix in office_extensions:
         return OfficeBackend()
@@ -166,6 +166,50 @@ def get_backend(path: Path, force_format: str | None = None) -> CrackBackend:
         if suffix in backend.extensions or force_format == backend.name:
             return backend
     raise UnsupportedFormat(f"暂不支持的文件格式：{suffix or path.name}")
+
+
+def detect_format(path: Path) -> str:
+    suffix = path.suffix.lower()
+    try:
+        header = path.read_bytes()[:16]
+    except OSError:
+        return suffix
+
+    if header.startswith(b"PK\x03\x04") or header.startswith(b"PK\x05\x06") or header.startswith(b"PK\x07\x08"):
+        return suffix if suffix in {".docx", ".xlsx", ".pptx"} else ".zip"
+    if header.startswith(b"Rar!\x1a\x07\x00") or header.startswith(b"Rar!\x1a\x07\x01\x00"):
+        return ".rar"
+    if header.startswith(b"7z\xbc\xaf\x27\x1c"):
+        return ".7z"
+    if header.startswith(b"%PDF"):
+        return ".pdf"
+    if header.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"):
+        return suffix if suffix in {
+            ".doc",
+            ".xls",
+            ".ppt",
+            ".docx",
+            ".xlsx",
+            ".pptx",
+            ".wps",
+            ".et",
+            ".el",
+            ".dps",
+            ".wpt",
+        } else ".doc"
+    return suffix
+
+
+def _normalize_format(force_format: str) -> str:
+    value = force_format.lower().lstrip(".")
+    aliases = {
+        "zip": ".zip",
+        "rar": ".rar",
+        "7z": ".7z",
+        "pdf": ".pdf",
+        "office": ".doc",
+    }
+    return aliases.get(value, f".{value}")
 
 
 def _verify_zip_stdlib(path: Path, password: str) -> bool:
