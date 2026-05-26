@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "filecrack"
+version = "0.1.0"
+description = "Fast dictionary-based password recovery for common encrypted file formats."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "hnytgl" }]
+keywords = ["password-recovery", "zip", "rar", "7z", "office", "pdf", "wps"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Topic :: Security",
+  "Topic :: Utilities",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+full = [
+  "pyzipper>=0.3.6",
+  "rarfile>=4.2",
+  "py7zr>=0.21.0",
+  "msoffcrypto-tool>=5.4.0",
+  "pikepdf>=9.0.0",
+]
+test = ["pytest>=8.0"]
+
+[project.scripts]
+filecrack = "filecrack.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["filecrack*"]
