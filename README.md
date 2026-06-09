@@ -1,97 +1,61 @@
 # FileCrack
 
-FileCrack 是一个面向授权场景的常见加密文件密码恢复工具，支持单个密码尝试、内置弱密码检查、导入字典路径、多线程尝试和多格式自动识别。适合找回自己遗忘的文件密码、企业内部合规恢复、取证实验环境验证等用途。
+FileCrack 是一个面向授权场景的常见加密文件密码恢复工具，支持单个密码尝试、内置弱密码检查、字典档和多线程批量尝试，自动识别多种文件格式。
 
 请只对你拥有所有权或明确授权的文件使用本工具。
 
-## 支持格式
-
-| 格式 | 支持方式 | 说明 |
-| --- | --- | --- |
-| zip | 内置支持 | 标准 ZipCrypto 可直接使用；AES ZIP 建议安装完整依赖 |
-| rar | 可选依赖 | 需要 `rarfile`，部分系统还需要 unrar/bsdtar/unar |
-| 7z | 可选依赖 | 需要 `py7zr` |
-| doc/docx | 可选依赖 | 需要 `msoffcrypto-tool` |
-| wps/wpt | 可选依赖 | 按 Office/WPS 加密容器尝试，需要 `msoffcrypto-tool` |
-| xls/xlsx | 可选依赖 | 需要 `msoffcrypto-tool` |
-| et/el | 可选依赖 | WPS 表格格式，按 Office/WPS 加密容器尝试 |
-| ppt/pptx | 可选依赖 | 需要 `msoffcrypto-tool` |
-| dps | 可选依赖 | WPS 演示格式，按 Office/WPS 加密容器尝试 |
-| pdf | 可选依赖 | 需要 `pikepdf` |
-
 ## 安装
 
-基础安装：
+基础安装（支持标准 ZipCrypto）：
 
 ```bash
-pip install -e .
+pip install filecrack
 ```
 
-完整格式支持：
+完整格式支持（ZIP AES-256 / RAR / 7z / PDF / Office / WPS）：
+
+```bash
+pip install "filecrack[full]"
+```
+
+从源码安装：
 
 ```bash
 pip install -e ".[full]"
 ```
 
-如果只需要 ZIP，基础安装即可。RAR、7Z、PDF、Office/WPS 系列建议安装完整依赖。
-
 ## 快速使用
 
-单个密码尝试：
-
 ```bash
+# 单个密码尝试
 filecrack ./locked.zip -p "my-secret"
-```
 
-弱密码检查：
-
-```bash
+# 内置弱密码检查（20+ 常见弱密码）
 filecrack ./locked.pdf --weak-check
-```
 
-准备字典文件，每行一个候选密码：
+# 字典档爆破
+filecrack ./locked.zip -w ./dict.txt -t 8
 
-```text
-123456
-password
-my-secret
-```
-
-开始恢复：
-
-```bash
-filecrack ./locked.zip -w ./dict.txt
-```
-
-组合使用，先尝试单个密码，再检查内置弱密码，最后跑字典：
-
-```bash
+# 组合：单密码 + 弱密码 + 字典档
 filecrack ./locked.docx -p "2026@Company" --weak-check -w ./dict.txt -t 8
-```
 
-指定线程数：
-
-```bash
-filecrack ./locked.7z -w ./dict.txt -t 8
-```
-
-强制指定格式：
-
-```bash
-filecrack ./unknown.bin -w ./dict.txt --format zip
-```
-
-脚本中只输出密码：
-
-```bash
+# 脚本中只输出密码本身
 filecrack ./locked.pdf -w ./dict.txt --quiet
 ```
 
-Windows PowerShell 示例：
+## 支持格式
 
-```powershell
-filecrack .\locked.xlsx -w .\dict.txt -t 8
-```
+| 格式 | 加密类型 | 依赖 | 说明 |
+| --- | --- | --- | --- |
+| ZIP | ZipCrypto（传统） | 内置 | Python 标准库原生支援 |
+| ZIP | AES-256 | `pyzipper` | 由 7-Zip / WinZip 等工具产生时需完整安装 |
+| RAR | RAR3/RAR5 | `rarfile` | 部分系统还需 `unrar` / `bsdtar` |
+| 7z | AES-256 | `py7zr` | |
+| Office | ECMA-376 / AES | `msoffcrypto-tool` | `.doc` / `.docx` / `.xls` / `.xlsx` / `.ppt` / `.pptx` |
+| WPS | Office 相容 | `msoffcrypto-tool` | `.wps` / `.et` / `.el` / `.dps` / `.wpt` |
+| PDF | RC4 / AES | `pikepdf` | |
+
+> **提示**：若出现 `ZIP uses AES-256 encryption; install pyzipper` 错误，表示该 ZIP 使用 AES 加密而非传统 ZipCrypto，执行 `pip install "filecrack[full]"` 即可支援。
 
 ## 参数说明
 
@@ -99,32 +63,49 @@ filecrack .\locked.xlsx -w .\dict.txt -t 8
 | --- | --- |
 | `target` | 需要恢复密码的文件路径 |
 | `-p, --password` | 单个密码尝试 |
-| `--weak-check` | 启用内置弱密码检查 |
-| `-w, --wordlist` | 字典路径，每行一个候选密码 |
+| `--weak-check` | 启用内置弱密码检查（20+ 常见弱密码） |
+| `-w, --wordlist` | 字典档路径，每行一个候选密码 |
 | `-t, --threads` | 线程数，默认使用 CPU 核心数 |
-| `--encoding` | 字典编码，默认 `utf-8` |
-| `--format` | 默认自动识别格式；必要时强制指定 `zip`、`rar`、`7z`、`pdf`、`docx` |
-| `--chunk-size` | 每个线程任务批量尝试的密码数量，默认 `512` |
-| `--quiet` | 只输出找到的密码 |
+| `--encoding` | 字典档编码，默认 `utf-8` |
+| `--format` | 强制指定格式：`zip`、`rar`、`7z`、`pdf`、`office`、`docx` 等 |
+| `--chunk-size` | 每个线程任务批量尝试的密码数，默认 `512` |
+| `--quiet` | 只输出找到的密码，便于脚本调用 |
+| `--version` | 显示版本号 |
 
 至少需要提供 `--password`、`--weak-check` 或 `--wordlist` 中的一种密码来源。
 
-## 自动识别
+## 格式识别规则
 
-FileCrack 默认会根据文件头魔数识别 `zip`、`rar`、`7z`、`pdf`、Office/WPS 加密容器，并在必要时回退到扩展名判断。常规情况下不需要手动指定格式；只有文件头被破坏、文件被改名成特殊扩展名或需要调试时，才建议使用 `--format`。
+FileCrack 默认依据文件头魔数识别格式（Magic Signature），而非扩展名：
 
-## 速度和准确率
+| 魔数 | 识别为 |
+| --- | --- |
+| `PK\x03\x04` | ZIP（.docx / .xlsx / .pptx 则判断 Office） |
+| `Rar!\x1a\x07` | RAR |
+| `7z\xbc\xaf\x27\x1c` | 7z |
+| `%PDF` | PDF |
+| `\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1`（OLE2） | Office / WPS |
 
-- 工具使用多线程批量调度，适合 I/O 型和部分库释放 GIL 的格式后端。
-- 准确率取决于格式后端能否正确验证密码，以及字典中是否包含正确密码。
-- ZIP、7Z、RAR、PDF、Office/WPS 的加密算法差异很大，实际速度会明显不同。
-- 未加密文件不会被误报为“第一个密码正确”。
-- 单密码、弱密码和字典组合使用时会自动去重，避免重复尝试。
+仅当无法读取文件头时回退到扩展名判断。因此，文件被改名或扩展名错误时仍能正确识别。
+
+```bash
+# 文件头损坏或非标准扩展名时强制指定格式
+filecrack ./unknown.bin -w ./dict.txt --format zip
+```
+
+## 故障排除
+
+| 问题 | 原因 | 解决 |
+| --- | --- | --- |
+| `ZIP uses AES-256 encryption; install pyzipper` | ZIP 使用 AES 加密，需 `pyzipper` | `pip install "filecrack[full]"` |
+| `xxx 支持需要安装 xxx` | 对应格式的后端未安装 | `pip install "filecrack[full]"` |
+| 未加密文件返回未找到 | 文件其实没有加密，正确密码是空字串 | 尝试 `-p ""` |
+| 速度慢 | 单线程或字典太大 | 加 `-t` 参数提高线程数 |
 
 ## 退出码
 
 - `0`：找到密码
-- `1`：未找到密码
+- `1`：未找到密码  
 - `2`：依赖缺失或后端错误
 
 ## 开发测试
@@ -133,10 +114,6 @@ FileCrack 默认会根据文件头魔数识别 `zip`、`rar`、`7z`、`pdf`、Of
 pip install -e ".[test]"
 python -m pytest
 ```
-
-## 合规声明
-
-FileCrack 只用于授权文件密码恢复和安全测试。不要将它用于未授权访问、绕过他人数据保护或任何违法行为。作者不对滥用造成的后果负责。
 
 ## 许可证
 

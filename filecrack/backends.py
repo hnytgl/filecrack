@@ -36,9 +36,16 @@ class ZipBackend:
             return password == ""
         if _verify_zip_stdlib(path, password):
             return True
+
+        # stdlib verification failed. For AES-encrypted zips (method 99), stdlib
+        # cannot handle them at all — pyzipper is required. Give a clear error.
         try:
             import pyzipper
         except ImportError:
+            if _zip_has_aes_entries(path):
+                raise BackendUnavailable(
+                    "ZIP uses AES-256 encryption; install pyzipper: pip install filecrack[full]"
+                ) from None
             return False
 
         try:
@@ -237,6 +244,16 @@ def _is_zip_container(path: Path) -> bool:
 def _zip_has_encrypted_member(path: Path) -> bool:
     try:
         with zipfile.ZipFile(path) as archive:
-            return any(info.flag_bits & 0x1 for info in archive.infolist() if not info.is_dir())
+            # Check both bit 0 (traditional encryption) and bit 6 (strong encryption / AES)
+            return any(info.flag_bits & (0x1 | 0x40) for info in archive.infolist() if not info.is_dir())
+    except (zipfile.BadZipFile, OSError):
+        return False
+
+
+def _zip_has_aes_entries(path: Path) -> bool:
+    """Check if any entry uses WinZip AES encryption (compression method 99)."""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            return any(info.compress_type == 99 for info in archive.infolist() if not info.is_dir())
     except (zipfile.BadZipFile, OSError):
         return False
